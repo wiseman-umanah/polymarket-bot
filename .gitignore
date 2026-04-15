@@ -9,3 +9,6 @@ wheels/
 # Virtual environments
 .venv
 .env
+AGENT.md
+PRD.md
+polymarket.db
