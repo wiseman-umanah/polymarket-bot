@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from config import DB_PATH, LOOKBACK_MINUTES, ALERT_COOLDOWN_MINUTES
 
 
@@ -65,7 +65,10 @@ def get_snapshot_5min_ago(market_id):
     conn = get_connection()
     cursor = conn.cursor()
 
-    lookback_time = datetime.now() - timedelta(minutes=LOOKBACK_MINUTES)
+    # Use UTC and pass as string to avoid deprecated datetime adapter issues
+    lookback_str = (datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=LOOKBACK_MINUTES)).strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
 
     cursor.execute(
         """
@@ -74,7 +77,7 @@ def get_snapshot_5min_ago(market_id):
         ORDER BY timestamp DESC
         LIMIT 1
     """,
-        (market_id, lookback_time),
+        (market_id, lookback_str),
     )
 
     row = cursor.fetchone()
@@ -140,3 +143,37 @@ def insert_alert(market_id, signal_type):
 
     conn.commit()
     conn.close()
+
+
+def count_alerts_today():
+    """Count alerts sent since UTC midnight today."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    today_start = datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d") + " 00:00:00"
+
+    cursor.execute(
+        "SELECT COUNT(*) as count FROM alerts WHERE sent_at >= ?",
+        (today_start,),
+    )
+
+    row = cursor.fetchone()
+    conn.close()
+
+    return row["count"] if row else 0
+
+
+def prune_old_snapshots(days=7):
+    """Delete snapshots older than `days` days. Returns number of rows deleted."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cutoff = (datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+
+    cursor.execute("DELETE FROM snapshots WHERE timestamp < ?", (cutoff,))
+    deleted = cursor.rowcount
+
+    conn.commit()
+    conn.close()
+
+    return deleted

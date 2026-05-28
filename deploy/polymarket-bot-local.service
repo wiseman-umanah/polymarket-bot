@@ -1,0 +1,17 @@
+[Unit]
+Description=PolySignal — Polymarket Monitoring Bot (local)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/knox/Documents/polymarket-bot
+ExecStart=/home/knox/Documents/polymarket-bot/.venv/bin/python main.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+TimeoutStopSec=15
+
+[Install]
+WantedBy=default.target

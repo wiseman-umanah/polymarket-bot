@@ -8,28 +8,28 @@ from config import PRICE_CHANGE_THRESHOLD, VOLUME_SPIKE_MULTIPLIER, VOLUME_AVERA
 def check_price_movement(market_id, current_price):
     """
     Check if price has moved 4% or more within ~5 minutes.
-    
+
     Args:
         market_id: Market identifier
         current_price: Current price (0.0 to 1.0)
-    
+
     Returns:
-        True if price movement >= threshold, False otherwise
+        Tuple of (triggered: bool, signed_change: float)
     """
     try:
         old_snapshot = get_snapshot_5min_ago(market_id)
-        
+
         if not old_snapshot:
-            return False
-        
+            return False, 0.0
+
         old_price = old_snapshot["price"]
-        price_change = abs(current_price - old_price)
-        
-        return price_change >= PRICE_CHANGE_THRESHOLD
-    
+        signed_change = current_price - old_price
+
+        return abs(signed_change) >= PRICE_CHANGE_THRESHOLD, signed_change
+
     except Exception as e:
         print(f"[ERROR] check_price_movement failed for {market_id}: {e}")
-        return False
+        return False, 0.0
 
 
 def check_volume_spike(market_id, current_volume):
@@ -63,21 +63,21 @@ def check_volume_spike(market_id, current_volume):
 def check_strong_signal(market_id, current_price, current_volume):
     """
     Check if both price movement AND volume spike are happening.
-    
+
     Args:
         market_id: Market identifier
         current_price: Current price (0.0 to 1.0)
         current_volume: Current volume in USD
-    
+
     Returns:
-        True if both signals are present, False otherwise
+        Tuple of (triggered: bool, signed_change: float)
     """
     try:
-        price_movement = check_price_movement(market_id, current_price)
+        price_movement, price_change = check_price_movement(market_id, current_price)
         volume_spike = check_volume_spike(market_id, current_volume)
-        
-        return price_movement and volume_spike
-    
+
+        return price_movement and volume_spike, price_change
+
     except Exception as e:
         print(f"[ERROR] check_strong_signal failed for {market_id}: {e}")
-        return False
+        return False, 0.0

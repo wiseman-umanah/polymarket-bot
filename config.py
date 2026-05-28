@@ -21,14 +21,18 @@ VOLUME_SPIKE_MULTIPLIER = float(os.getenv("VOLUME_SPIKE_MULTIPLIER", "2.0"))
 VOLUME_AVERAGE_WINDOW = int(os.getenv("VOLUME_AVERAGE_WINDOW", "10"))
 LOOKBACK_MINUTES = int(os.getenv("LOOKBACK_MINUTES", "5"))
 
+# Database Maintenance
+DB_PRUNE_DAYS = int(os.getenv("DB_PRUNE_DAYS", "7"))
+
 # API Configuration
+MARKET_FETCH_LIMIT = int(os.getenv("MARKET_FETCH_LIMIT", "100"))
 GAMMA_API_URL = "https://gamma-api.polymarket.com/markets"
 GAMMA_API_PARAMS = {
     "active": "true",
     "closed": "false",
     "order": "volumeNum",
     "ascending": "false",
-    "limit": "50",
+    "limit": str(MARKET_FETCH_LIMIT),
 }
 
 # Database Configuration
