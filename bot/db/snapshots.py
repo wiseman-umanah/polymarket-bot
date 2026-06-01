@@ -11,7 +11,7 @@ async def insert_snapshot(market_id: str, market_name: str, price: float, volume
 
 
 async def get_snapshot_lookback(market_id: str) -> dict | None:
-    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=LOOKBACK_MINUTES)).strftime("%Y-%m-%d %H:%M:%S")
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=LOOKBACK_MINUTES)
     return await db.fetchone(
         "SELECT * FROM snapshots WHERE market_id = $1 AND timestamp <= $2 ORDER BY timestamp DESC LIMIT 1",
         market_id, cutoff,
@@ -26,7 +26,7 @@ async def get_recent_snapshots(market_id: str, n: int = 10) -> list[dict]:
 
 
 async def get_top_movers(n: int = 5) -> list[dict]:
-    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=LOOKBACK_MINUTES)).strftime("%Y-%m-%d %H:%M:%S")
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=LOOKBACK_MINUTES)
     if db.is_postgres:
         sql = """
             WITH latest AS (
@@ -88,5 +88,5 @@ async def search_market_snapshot(query: str) -> list[dict]:
 
 
 async def prune_old_snapshots(days: int = 7) -> int:
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     return await db.execute("DELETE FROM snapshots WHERE timestamp < $1", cutoff)

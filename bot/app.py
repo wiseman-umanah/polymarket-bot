@@ -5,7 +5,7 @@ from telegram import BotCommand, BotCommandScopeChat, BotCommandScopeDefault
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 from bot.config import (
     TELEGRAM_BOT_TOKEN, ADMIN_CHAT_ID, POLL_INTERVAL,
-    WEBHOOK_URL, PORT, WEBHOOK_SECRET,
+    WEBHOOK_URL, PORT, WEBHOOK_SECRET, LOG_LEVEL,
 )
 from bot.state import state
 from bot.db import init_db
@@ -19,13 +19,16 @@ from bot.handlers.user import (
 from bot.handlers.preferences import cmd_alerts, cmd_quiet, cmd_minvol, cmd_pricefilter
 from bot.handlers.admin import cmd_admin, cmd_adminstats, cmd_broadcast, admin_callback
 
+_stream_handler = logging.StreamHandler()
+_stream_handler.setLevel(LOG_LEVEL)
+
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
     handlers=[
         logging.FileHandler("bot.log"),
-        logging.StreamHandler(),
+        _stream_handler,
     ],
 )
 

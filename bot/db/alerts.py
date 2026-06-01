@@ -42,6 +42,7 @@ async def get_recent_alerts(n: int = 5) -> list[dict]:
 
 
 async def count_alerts_today() -> int:
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d") + " 00:00:00"
-    row = await db.fetchone("SELECT COUNT(*) AS count FROM alerts WHERE sent_at >= $1", today)
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    row = await db.fetchone("SELECT COUNT(*) AS count FROM alerts WHERE sent_at >= $1", today_start)
     return row["count"] if row else 0

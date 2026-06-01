@@ -53,7 +53,7 @@ async def poll_markets(context: ContextTypes.DEFAULT_TYPE):
         markets = await asyncio.to_thread(fetch_markets)
         state.last_market_count = len(markets)
         state.consecutive_failures = 0
-        logger.info(f"Fetched {len(markets)} markets")
+        logger.debug(f"Fetched {len(markets)} markets")
 
         alerts_sent = 0
         for market in markets:
@@ -87,7 +87,10 @@ async def poll_markets(context: ContextTypes.DEFAULT_TYPE):
             except Exception:
                 logger.exception(f"Failed to process market {market.get('market_id')}")
 
-        logger.info(f"Cycle complete: {alerts_sent} alert(s)" if alerts_sent else "Cycle complete: no signals")
+        if alerts_sent:
+            logger.info(f"Cycle complete: {alerts_sent} alert(s)")
+        else:
+            logger.debug("Cycle complete: no signals")
 
     except Exception as e:
         state.consecutive_failures += 1

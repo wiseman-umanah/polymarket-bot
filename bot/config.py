@@ -40,6 +40,8 @@ GAMMA_API_PARAMS = {
 }
 
 # Server — set WEBHOOK_URL on Railway; leave empty to use polling locally
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+
 WEBHOOK_URL = os.getenv("WEBHOOK_URL", "")
 PORT = int(os.getenv("PORT", "8443"))
 WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")
