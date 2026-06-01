@@ -1,26 +1,24 @@
-# PolySignal — Polymarket Monitoring Bot
+# PolySignal
 
-A lightweight, production-ready bot that monitors active Polymarket prediction markets, detects unusual activity, and delivers real-time alerts straight to Telegram.
-
----
-
-## Features
-
-| Feature | Details |
-|---------|---------|
-| 📈 Price movement alerts | Fires when price moves ≥4% within ~5 minutes |
-| 📊 Volume spike alerts | Fires when volume is ≥2× the recent average |
-| 🚨 Strong signal alerts | Fires when both conditions occur together |
-| ⏱ 15-min cooldown | One alert per market per signal type — no spam |
-| 💬 Telegram commands | `/status`, `/pause`, `/resume`, `/thresholds` |
-| 🗄 Persistent SQLite storage | Survives restarts — history and cooldowns intact |
-| 🧹 Automatic DB pruning | Removes snapshots older than 7 days automatically |
-| 📝 File logging | Full log written to `bot.log` |
-| 🔁 Auto-restart | systemd keeps the bot running 24/7 |
+A Telegram bot that monitors active [Polymarket](https://polymarket.com) prediction markets, detects unusual price and volume activity, and delivers real-time alerts to anyone who subscribes.
 
 ---
 
-## Alert Format
+## How it works
+
+Every 30 seconds the bot fetches the top 100 most-active markets from Polymarket's public API. For each market it stores a snapshot and runs three signal checks:
+
+| Signal | Condition |
+|---|---|
+| 📈 Price movement | Price shifted ±4%+ compared to 5 minutes ago |
+| 📊 Volume spike | Current volume is 2×+ the recent rolling average |
+| 🚨 Strong signal | Both conditions fire at the same time |
+
+When a signal fires, the bot broadcasts an alert to every subscriber. Each market has a 15-minute cooldown per signal type to prevent spam.
+
+---
+
+## Alert format
 
 ```
 🚨 STRONG SIGNAL
@@ -29,227 +27,227 @@ Market : Will BTC reach $200k by end of 2026?
 Price  : 64.2%
 Move   : UP +6.2%
 Volume : $1,234,567
-Signal : Both price movement (4%+) and volume spike (2x+) detected
-Link   : https://polymarket.com/market/will-btc-reach-200k-2026
+Signal : Price moved 4%+ and volume spiked 2×+
+Link   : View Market
 ```
 
 ---
 
-## Telegram Commands
+## Telegram commands
+
+### For everyone
 
 | Command | Description |
-|---------|-------------|
-| `/start` | Welcome message and feature overview |
-| `/status` | Uptime, markets monitored, alerts sent today |
-| `/pause` | Stop sending alerts (bot keeps running) |
-| `/resume` | Resume alerts after a pause |
-| `/thresholds` | Show current signal detection settings |
+|---|---|
+| `/start` | Subscribe to alerts |
+| `/stop` | Unsubscribe |
+| `/status` | Bot uptime, markets monitored, alerts sent today |
+| `/top` | Top 5 markets by price movement right now |
+| `/market <term>` | Search for a specific market by name |
+| `/history` | Last 5 alerts the bot sent |
+| `/thresholds` | Show the global signal detection settings |
+| `/mystats` | Your subscription date and current preferences |
+
+### Personal preferences
+
+| Command | Description |
+|---|---|
+| `/alerts [all\|price\|volume\|strong]` | Filter which signal types you receive |
+| `/quiet [HH HH\|off]` | Set a quiet window in UTC (e.g. `/quiet 22 07`) |
+| `/minvol [amount\|reset]` | Personal minimum market volume (e.g. `/minvol 50000`) |
+| `/pricefilter [value\|reset]` | Personal price move threshold (e.g. `/pricefilter 0.08` or `/pricefilter 8`) |
+
+### Admin only
+
+| Command | Description |
+|---|---|
+| `/admin` | Pause/Resume button — stops all alerts globally |
+| `/adminstats` | Subscriber count, alert stats, mode, failure count |
+| `/broadcast <text>` | Push a message to all subscribers |
 
 ---
 
-## Requirements
+## Local setup
 
-- Python 3.11+
-- `uv` package manager
-- A Telegram bot token (from [@BotFather](https://t.me/botfather))
-- Your Telegram chat ID
+### Prerequisites
 
----
-
-## Local Setup
+- Python 3.12+
+- [`uv`](https://docs.astral.sh/uv/) package manager
+- A Telegram bot token from [@BotFather](https://t.me/botfather)
 
 ### 1. Install dependencies
 
 ```bash
-uv venv
 uv sync
 ```
 
-### 2. Create your Telegram bot
+### 2. Create a Telegram bot
 
 1. Open Telegram and message [@BotFather](https://t.me/botfather)
 2. Send `/newbot` and follow the prompts
-3. Copy the token you receive (format: `123456:ABC-DEF...`)
+3. Copy the token you receive — it looks like `123456789:ABC-DEF...`
 
-### 3. Get your Telegram chat ID
+### 3. Get your Telegram chat ID (for `ADMIN_CHAT_ID`)
 
-1. Send any message to your new bot
-2. Visit `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates`
-3. Find the `"id"` field inside `"chat"` in the response
-
-Alternatively, message [@userinfobot](https://t.me/userinfobot) on Telegram.
+Message [@userinfobot](https://t.me/userinfobot) on Telegram. It will reply with your numeric ID.
 
 ### 4. Configure
 
 ```bash
 cp .env.example .env
-# Edit .env and fill in TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID
+```
+
+Open `.env` and fill in at minimum:
+
+```env
+TELEGRAM_BOT_TOKEN=your_token_here
+ADMIN_CHAT_ID=your_numeric_id_here
 ```
 
 ### 5. Run
 
 ```bash
-source .venv/bin/activate
-python main.py
+uv run polymarket-bot
 ```
+
+Or directly:
+
+```bash
+uv run python -m bot
+```
+
+The bot starts in **polling mode** locally (no webhook needed). It will log to `bot.log` and print status to stdout.
 
 ---
 
-## VPS Deployment (Ubuntu / Debian)
+## Railway deployment
 
-### Automated setup
+Railway is the recommended hosting platform. It provides free PostgreSQL and a public HTTPS URL.
 
-Copy the project to your VPS, then run the setup script as root:
+### 1. Create a new Railway project
 
-```bash
-sudo bash deploy/setup.sh
-```
+Go to [railway.app](https://railway.app) and create a new empty project.
 
-The script will:
-- Install Python 3 and `uv`
-- Create a dedicated `polymarket` system user
-- Copy the bot to `/opt/polymarket-bot`
-- Set up the Python virtual environment
-- Create `/opt/polymarket-bot/.env` from the example
-- Install and enable the systemd service
-- Install the logrotate config
+### 2. Add a PostgreSQL database
 
-After setup, add your Telegram credentials:
+In your project dashboard → **New** → **Database** → **PostgreSQL**.
+Railway automatically injects `DATABASE_URL` into your service's environment.
+
+### 3. Deploy the bot
+
+Connect your GitHub repository to Railway or push via the Railway CLI:
 
 ```bash
-sudo nano /opt/polymarket-bot/.env
+railway up
 ```
 
-Then start the bot:
+### 4. Set environment variables
 
-```bash
-sudo systemctl start polymarket-bot
-sudo systemctl status polymarket-bot
+In Railway → your service → **Variables**, add:
+
+```
+TELEGRAM_BOT_TOKEN=your_token_here
+ADMIN_CHAT_ID=your_numeric_id_here
 ```
 
-### Manual systemd setup
+All other settings have sensible defaults. See [BOT.md](BOT.md) for the full reference.
 
-If you prefer to configure manually:
+### 5. Add a webhook URL
 
-```bash
-# Copy the service file
-sudo cp deploy/polymarket-bot.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable polymarket-bot
-sudo systemctl start polymarket-bot
+Once the service is deployed, Railway gives you a public URL under the **Domains** tab (e.g. `https://polymarket-bot.up.railway.app`).
+
+Add it as an environment variable:
+
+```
+WEBHOOK_URL=https://polymarket-bot.up.railway.app
 ```
 
-### Useful commands
+Save → Railway restarts the service → the bot switches from polling to webhook mode automatically and registers the URL with Telegram.
 
-```bash
-# View live logs
-sudo journalctl -u polymarket-bot -f
+### Health check
 
-# View file log
-tail -f /opt/polymarket-bot/bot.log
-
-# Restart after config change
-sudo systemctl restart polymarket-bot
-
-# Stop the bot
-sudo systemctl stop polymarket-bot
-```
+The bot runs a lightweight HTTP server on `HEALTH_PORT` (default `8080`) that returns `200 OK`. Configure Railway's health check to hit that port if needed.
 
 ---
 
-## Configuration Reference
+## Configuration reference
 
-Edit `.env` to customise behaviour. All settings have sensible defaults.
-
-See [BOT.md](BOT.md) for a detailed explanation of each setting.
+Copy `.env.example` to `.env` and adjust as needed. See [BOT.md](BOT.md) for a detailed explanation of every setting.
 
 | Variable | Default | Description |
-|----------|---------|-------------|
-| `TELEGRAM_BOT_TOKEN` | — | **Required.** Your Telegram bot token |
-| `TELEGRAM_CHAT_ID` | — | **Required.** Your Telegram user/chat ID |
-| `MIN_VOLUME` | `10000` | Minimum total market volume (USD) |
-| `MIN_VOLUME_24HR` | `1000` | Minimum 24h market volume (USD) |
+|---|---|---|
+| `TELEGRAM_BOT_TOKEN` | — | **Required.** Bot token from BotFather |
+| `ADMIN_CHAT_ID` | — | **Required.** Your Telegram user ID — grants `/admin` access |
+| `DATABASE_URL` | _(empty)_ | PostgreSQL URL — set automatically by Railway; empty = SQLite locally |
+| `SQLITE_PATH` | `polymarket.db` | Local SQLite file path (local dev only) |
+| `MIN_VOLUME` | `10000` | Minimum total market volume in USD |
+| `MIN_VOLUME_24HR` | `1000` | Minimum 24h market volume in USD |
 | `MARKET_FETCH_LIMIT` | `100` | Markets fetched per poll cycle |
-| `PRICE_CHANGE_THRESHOLD` | `0.04` | Price move threshold (0.04 = 4%) |
-| `VOLUME_SPIKE_MULTIPLIER` | `2.0` | Volume multiplier to trigger spike alert |
+| `POLL_INTERVAL` | `30` | Seconds between market scans |
+| `ALERT_COOLDOWN_MINUTES` | `15` | Per-market, per-signal cooldown |
+| `PRICE_CHANGE_THRESHOLD` | `0.04` | Global price move threshold (4%) |
+| `VOLUME_SPIKE_MULTIPLIER` | `2.0` | Global volume spike multiplier |
 | `VOLUME_AVERAGE_WINDOW` | `10` | Snapshots used to compute volume average |
 | `LOOKBACK_MINUTES` | `5` | Minutes back for price comparison |
-| `POLL_INTERVAL` | `30` | Seconds between market polls |
-| `ALERT_COOLDOWN_MINUTES` | `15` | Cooldown per market per signal type |
 | `DB_PRUNE_DAYS` | `7` | Days of snapshots to retain |
+| `WEBHOOK_URL` | _(empty)_ | Public HTTPS URL — enables webhook mode |
+| `PORT` | `8443` | Webhook listener port |
+| `HEALTH_PORT` | `8080` | Health check HTTP server port |
+| `WEBHOOK_SECRET` | _(empty)_ | Optional secret token for webhook security |
 
 ---
 
-## Running Tests
+## Project structure
 
-```bash
-uv run pytest tests/ -v
 ```
-
-All 58 tests should pass.
+bot/
+├── config.py          — all settings, loaded from .env
+├── state.py           — shared runtime state (paused, uptime, etc.)
+├── api.py             — fetches and filters markets from Gamma API
+├── detector.py        — price movement and volume spike checks
+├── notifier.py        — broadcasts alerts with per-user preference filtering
+├── jobs.py            — the market polling job that runs every 30s
+├── app.py             — wires everything together, entry point
+├── db/
+│   ├── core.py        — Database class (PostgreSQL + SQLite dual backend)
+│   ├── snapshots.py   — market snapshot queries
+│   ├── alerts.py      — alert history queries
+│   └── subscribers.py — subscriber and per-user preferences
+└── handlers/
+    ├── user.py        — user-facing commands
+    ├── preferences.py — preference commands (/alerts, /quiet, etc.)
+    └── admin.py       — admin-only commands and inline panel
+```
 
 ---
 
 ## Troubleshooting
 
-### Not receiving alerts
+**Not receiving alerts**
+- Send `/start` to the bot — you must subscribe first
+- Check `bot.log` for errors
+- Temporarily lower `PRICE_CHANGE_THRESHOLD=0.01` to confirm the pipeline works
+- Test Telegram connectivity:
+  ```bash
+  curl -X POST https://api.telegram.org/bot<TOKEN>/sendMessage \
+    -d chat_id=<YOUR_ID> -d text="test"
+  ```
 
-1. Verify Telegram credentials in `.env`
-2. Test the connection manually:
-   ```bash
-   curl -X POST https://api.telegram.org/bot<TOKEN>/sendMessage \
-     -d chat_id=<CHAT_ID> -d text="test"
-   ```
-3. Lower thresholds temporarily (`PRICE_CHANGE_THRESHOLD=0.01`) to confirm the pipeline works
-4. Check `bot.log` for errors
+**Bot started but nothing happens**
+- Run `/status` — if it replies, the bot is alive and polling
+- Run `/thresholds` to confirm settings are loaded correctly
+- Markets need a few poll cycles before signals can fire (the lookback window needs data)
 
-### Bot keeps stopping
+**Webhook not working on Railway**
+- Confirm `WEBHOOK_URL` is set to your Railway public domain (no trailing slash)
+- Check that the domain is active under the **Domains** tab in Railway
+- The bot logs `Webhook mode — port X` on startup if it registered correctly
 
-```bash
-# Check service status
-sudo systemctl status polymarket-bot
-
-# Check logs for crash reason
-sudo journalctl -u polymarket-bot --since "10 minutes ago"
-```
-
-### Database is growing large
-
-The bot prunes snapshots older than `DB_PRUNE_DAYS` (default 7) automatically. To adjust:
-
-```
-DB_PRUNE_DAYS=3  # keep only 3 days
-```
-
-Check current DB size:
-
-```bash
-ls -lh /opt/polymarket-bot/polymarket.db
-```
-
-### Alerts fire at the wrong time
-
-Ensure the VPS is set to UTC:
-
-```bash
-timedatectl set-timezone UTC
-```
-
----
-
-## Architecture
-
-```
-main.py          — polling loop, Telegram commands, orchestration
-api.py           — fetches and filters markets from Gamma API
-detector.py      — price movement and volume spike detection
-notifier.py      — formats and sends Telegram alerts (with retry)
-db.py            — SQLite storage (snapshots, alerts, pruning)
-config.py        — all settings loaded from .env
-```
+**Quiet hours not working**
+- Hours are in UTC. Use `/mystats` to confirm your saved settings.
 
 ---
 
 ## License
 
-MIT — free to use, modify, and sell.
+MIT — free to use, modify, and deploy.

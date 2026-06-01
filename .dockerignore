@@ -1,0 +1,9 @@
+.venv
+.env
+__pycache__
+*.py[oc]
+polymarket.db
+polymarket.db-journal
+bot.log
+AGENT.md
+PRD.md
