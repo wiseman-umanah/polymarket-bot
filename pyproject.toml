@@ -1,8 +1,13 @@
 [project]
 name = "polymarket-bot"
 version = "0.1.0"
-description = "Add your description here"
+description = "Telegram bot that monitors Polymarket prediction markets and delivers real-time price/volume alerts"
 readme = "README.md"
+license = "MIT"
+authors = [
+    { name = "Wiseman Umanah" },
+]
+keywords = ["telegram", "bot", "polymarket", "prediction-markets", "alerts"]
 requires-python = ">=3.14"
 dependencies = [
     "aiosqlite>=0.22.1",
@@ -11,6 +16,9 @@ dependencies = [
     "python-telegram-bot[job-queue,webhooks]>=22.7",
     "requests>=2.33.1",
 ]
+
+[project.urls]
+Repository = "https://github.com/wiseman-umanah/polymarket-bot"
 
 [project.scripts]
 polymarket-bot = "bot.app:main"

@@ -1,4 +1,4 @@
-# PolySignal
+# PolyShock
 
 A Telegram bot that monitors active [Polymarket](https://polymarket.com) prediction markets, detects unusual price and volume activity, and delivers real-time alerts to anyone who subscribes.
 

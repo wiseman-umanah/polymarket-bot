@@ -19,6 +19,11 @@ from bot.handlers.user import (
 )
 from bot.handlers.preferences import cmd_alerts, cmd_quiet, cmd_minvol, cmd_pricefilter
 from bot.handlers.admin import cmd_admin, cmd_adminstats, cmd_broadcast, admin_callback
+from bot.handlers.menu import handle_menu_text, settings_menu_callback
+from bot.handlers.settings_ui import (
+    settings_choice_callback, alert_filter_callback, numpad_callback, reset_all_callback,
+)
+from bot.handlers.unsubscribe import unsubscribe_feedback_callback
 
 _stream_handler = logging.StreamHandler()
 _stream_handler.setLevel(LOG_LEVEL)
@@ -33,6 +38,8 @@ logging.basicConfig(
         admin_log_handler,
     ],
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _build_app() -> Application:
@@ -55,6 +62,15 @@ def _build_app() -> Application:
     app.add_handler(CommandHandler("adminstats", cmd_adminstats))
     app.add_handler(CommandHandler("broadcast", cmd_broadcast))
     app.add_handler(CallbackQueryHandler(admin_callback, pattern="^admin_"))
+    app.add_handler(CallbackQueryHandler(settings_menu_callback, pattern="^menu_"))
+    app.add_handler(CallbackQueryHandler(settings_choice_callback, pattern="^numset_"))
+    app.add_handler(CallbackQueryHandler(alert_filter_callback, pattern="^setaf_"))
+    app.add_handler(CallbackQueryHandler(numpad_callback, pattern="^np"))
+    app.add_handler(CallbackQueryHandler(reset_all_callback, pattern="^resetall_"))
+    app.add_handler(CallbackQueryHandler(unsubscribe_feedback_callback, pattern="^unsub_"))
+
+    # Reply-keyboard taps arrive as plain text — route them before the catch-all
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu_text))
 
     # Must be last — catches any command not matched above
     app.add_handler(MessageHandler(filters.COMMAND, cmd_unknown))
@@ -90,10 +106,16 @@ _ADMIN_COMMANDS = _USER_COMMANDS + [
 async def _register_commands(app: Application):
     await app.bot.set_my_commands(_USER_COMMANDS, scope=BotCommandScopeDefault())
     if ADMIN_CHAT_ID:
-        await app.bot.set_my_commands(_ADMIN_COMMANDS, scope=BotCommandScopeChat(chat_id=ADMIN_CHAT_ID))
+        try:
+            await app.bot.set_my_commands(_ADMIN_COMMANDS, scope=BotCommandScopeChat(chat_id=ADMIN_CHAT_ID))
+        except Exception as e:
+            logger.warning(
+                f"Could not register admin command scope for chat {ADMIN_CHAT_ID} "
+                f"(send /start to this bot from that chat first): {e}"
+            )
 
     await app.bot.set_my_description(
-        "PolySignal monitors Polymarket prediction markets and sends real-time alerts "
+        "PolyShock monitors Polymarket prediction markets and sends real-time alerts "
         "when unusual price or volume activity is detected.\n\n"
         "Send /start to subscribe."
     )
@@ -112,39 +134,42 @@ async def _run():
 
     async with app:
         await app.start()
+        updater_started = False
+        try:
+            await _register_commands(app)
 
-        await _register_commands(app)
+            if WEBHOOK_URL:
+                await app.updater.start_webhook(
+                    listen="0.0.0.0",
+                    port=PORT,
+                    url_path=TELEGRAM_BOT_TOKEN,
+                    webhook_url=f"{WEBHOOK_URL}/{TELEGRAM_BOT_TOKEN}",
+                    drop_pending_updates=True,
+                    secret_token=WEBHOOK_SECRET or None,
+                )
+                print(f"[INFO] Webhook mode — port {PORT}")
+            else:
+                await app.updater.start_polling(drop_pending_updates=True)
+                print("[INFO] Polling mode")
+            updater_started = True
 
-        if WEBHOOK_URL:
-            await app.updater.start_webhook(
-                listen="0.0.0.0",
-                port=PORT,
-                url_path=TELEGRAM_BOT_TOKEN,
-                webhook_url=f"{WEBHOOK_URL}/{TELEGRAM_BOT_TOKEN}",
-                drop_pending_updates=True,
-                secret_token=WEBHOOK_SECRET or None,
-            )
-            print(f"[INFO] Webhook mode — port {PORT}")
-        else:
-            await app.updater.start_polling(drop_pending_updates=True)
-            print("[INFO] Polling mode")
+            msg = f"Bot started. Monitoring {len(markets)} markets."
+            await broadcast_message(app.bot, msg)
+            print(f"[INFO] {msg}")
 
-        msg = f"Bot started. Monitoring {len(markets)} markets."
-        await broadcast_message(app.bot, msg)
-        print(f"[INFO] {msg}")
+            stop_event = asyncio.Event()
+            loop = asyncio.get_running_loop()
+            for sig in (signal.SIGINT, signal.SIGTERM):
+                loop.add_signal_handler(sig, stop_event.set)
 
-        stop_event = asyncio.Event()
-        loop = asyncio.get_running_loop()
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            loop.add_signal_handler(sig, stop_event.set)
-
-        await stop_event.wait()
-
-        print("[INFO] Shutting down...")
-        await app.updater.stop()
-        await app.stop()
+            await stop_event.wait()
+            print("[INFO] Shutting down...")
+        finally:
+            if updater_started:
+                await app.updater.stop()
+            await app.stop()
 
 
 def main():
-    print("[INFO] Starting PolySignal")
+    print("[INFO] Starting PolyShock")
     asyncio.run(_run())

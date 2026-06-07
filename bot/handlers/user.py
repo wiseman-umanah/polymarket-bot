@@ -6,11 +6,14 @@ from bot.config import (
     LOOKBACK_MINUTES, VOLUME_SPIKE_MULTIPLIER, ADMIN_CHAT_ID,
 )
 from bot.state import state
+from bot.keyboards import main_menu_keyboard, unsubscribe_feedback_keyboard
 from bot.db import (
     add_subscriber, remove_subscriber, count_subscribers,
     count_alerts_today, get_subscriber_info, get_preferences,
     get_top_movers, search_market_snapshot, get_recent_alerts,
 )
+
+X_LINK = "https://x.com/0xwisemanumanah"
 
 
 def _fmt_ts(ts) -> str:
@@ -23,26 +26,17 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     await add_subscriber(chat_id, update.effective_user.username)
     await update.message.reply_text(
-        "👋 <b>Welcome to PolySignal!</b>\n\n"
-        "You're subscribed to Polymarket alerts.\n\n"
+        "👋 <b>Welcome to PolyShock!</b>\n\n"
+        "You're subscribed to real-time Polymarket alerts.\n\n"
         "Alerts fire when:\n"
         "📈 Price moves ≥4% within ~5 minutes\n"
         "📊 Volume spikes ≥2× the recent average\n"
         "🚨 Both happen together (strong signal)\n\n"
-        "<b>Info:</b>\n"
-        "/status      — bot status\n"
-        "/top         — top movers right now\n"
-        "/market      — look up a market\n"
-        "/history     — recent alerts\n"
-        "/thresholds  — global signal settings\n\n"
-        "<b>Your preferences:</b>\n"
-        "/alerts      — set signal filter\n"
-        "/quiet       — set quiet hours\n"
-        "/minvol      — set min volume\n"
-        "/pricefilter — set price move threshold\n"
-        "/mystats     — view your settings\n\n"
+        "Use the menu below to explore — top movers, market search, "
+        "your stats and settings. Send /help anytime for commands that take input.\n\n"
         "/stop — unsubscribe",
         parse_mode="HTML",
+        reply_markup=main_menu_keyboard,
     )
 
 
@@ -59,51 +53,63 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_admin = chat_id == ADMIN_CHAT_ID
 
     text = (
-        "📖 <b>PolySignal Commands</b>\n\n"
-        "<b>General</b>\n"
-        "/start         — subscribe to alerts\n"
-        "/stop          — unsubscribe\n"
-        "/status        — uptime, markets, alerts sent today\n"
-        "/top           — top 5 movers right now\n"
-        "/market &lt;term&gt; — search markets by name\n"
-        "/history       — last 5 alerts sent\n"
-        "/thresholds    — global signal settings\n\n"
-        "<b>Your preferences</b>\n"
-        "/alerts        — filter by signal type (all/price/volume/strong)\n"
-        "/quiet         — set quiet hours (e.g. /quiet 22 07)\n"
-        "/minvol        — personal min volume (e.g. /minvol 50000)\n"
-        "/pricefilter   — personal price threshold (e.g. /pricefilter 8)\n"
-        "/mystats       — view all your current settings\n"
+        "📖 <b>PolyShock Help</b>\n\n"
+        "Use the menu below to browse top movers, search markets, view alert "
+        "history, and check or change your settings.\n\n"
+        "<b>Commands that take input:</b>\n"
+        "<code>/market &lt;term&gt;</code> — search markets by name\n"
+        "<code>/alerts all|price|volume|strong</code> — filter signal types\n"
+        "<code>/quiet HH HH|off</code> — set quiet hours in UTC\n"
+        "<code>/minvol &lt;amount&gt;|reset</code> — your minimum market volume\n"
+        "<code>/pricefilter &lt;value&gt;|reset</code> — your price move threshold\n\n"
+        "<code>/thresholds</code> — view global signal settings\n"
+        "<code>/stop</code> — unsubscribe anytime"
     )
 
     if is_admin:
         text += (
-            "\n<b>Admin only</b>\n"
+            "\n\n<b>Admin only</b>\n"
             "/admin         — pause/resume all alerts (inline button)\n"
             "/adminstats    — subscriber count, stats, mode\n"
             "/broadcast &lt;text&gt; — push a message to all subscribers\n"
         )
 
-    await update.message.reply_text(text, parse_mode="HTML")
+    await update.message.reply_text(text, parse_mode="HTML", reply_markup=main_menu_keyboard)
 
 
 async def cmd_stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await remove_subscriber(update.effective_chat.id)
-    await update.message.reply_text("👋 Unsubscribed. Send /start anytime to resubscribe.")
+    await update.message.reply_text(
+        "👋 Unsubscribed. Send /start anytime to resubscribe.\n\n"
+        "Mind telling us why you left? It really helps us improve. (totally optional)",
+        reply_markup=unsubscribe_feedback_keyboard(),
+    )
 
 
 async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uptime = datetime.now() - state.start_time
-    h, rem = divmod(int(uptime.total_seconds()), 3600)
-    m = rem // 60
+    chat_id = update.effective_chat.id
+
+    if chat_id == ADMIN_CHAT_ID:
+        uptime = datetime.now() - state.start_time
+        h, rem = divmod(int(uptime.total_seconds()), 3600)
+        m = rem // 60
+        await update.message.reply_text(
+            f"📊 <b>Bot Status</b> (admin view)\n\n"
+            f"Uptime      : {h}h {m}m\n"
+            f"Markets     : {state.last_market_count} monitored\n"
+            f"Subscribers : {await count_subscribers()}\n"
+            f"Alerts today: {await count_alerts_today()}\n"
+            f"State       : {'⏸ Paused' if state.paused else '✅ Running'}",
+            parse_mode="HTML",
+        )
+        return
+
     await update.message.reply_text(
-        f"📊 <b>Bot Status</b>\n\n"
-        f"Uptime      : {h}h {m}m\n"
-        f"Markets     : {state.last_market_count} monitored\n"
-        f"Subscribers : {await count_subscribers()}\n"
-        f"Alerts today: {await count_alerts_today()}\n"
-        f"State       : {'⏸ Paused' if state.paused else '✅ Running'}",
+        "✅ <b>PolyShock is active.</b>\n\n"
+        "Built by Wiseman\n"
+        f'<a href="{X_LINK}">Follow on X</a>',
         parse_mode="HTML",
+        disable_web_page_preview=True,
     )
 
 

@@ -4,6 +4,32 @@ from bot.config import MIN_VOLUME, PRICE_CHANGE_THRESHOLD
 from bot.db import get_preferences, upsert_preference
 
 
+def parse_price_filter(raw: str) -> float | None:
+    """Accepts '8' or '0.08' — returns a normalized 0<val<1 threshold, or None if invalid."""
+    try:
+        val = float(raw)
+    except ValueError:
+        return None
+    val = val / 100 if val > 1 else val
+    return val if 0 < val < 1 else None
+
+
+def parse_min_volume(raw: str) -> float | None:
+    try:
+        val = float(raw.replace(",", ""))
+    except ValueError:
+        return None
+    return val if val >= 0 else None
+
+
+def parse_quiet_hour(raw: str) -> int | None:
+    try:
+        val = int(raw)
+    except ValueError:
+        return None
+    return val if 0 <= val <= 23 else None
+
+
 async def cmd_alerts(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     if not context.args:
