@@ -8,6 +8,7 @@ from bot.config import (
     WEBHOOK_URL, PORT, WEBHOOK_SECRET, LOG_LEVEL,
 )
 from bot.state import state
+from bot.alerting import admin_log_handler
 from bot.db import init_db
 from bot.api import fetch_markets
 from bot.notifier import broadcast_message
@@ -29,6 +30,7 @@ logging.basicConfig(
     handlers=[
         logging.FileHandler("bot.log"),
         _stream_handler,
+        admin_log_handler,
     ],
 )
 
@@ -106,6 +108,7 @@ async def _run():
     state.last_market_count = len(markets)
 
     app = _build_app()
+    admin_log_handler.bind(app.bot, asyncio.get_running_loop())
 
     async with app:
         await app.start()
