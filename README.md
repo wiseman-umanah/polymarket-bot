@@ -164,10 +164,6 @@ WEBHOOK_URL=https://polymarket-bot.up.railway.app
 
 Save → Railway restarts the service → the bot switches from polling to webhook mode automatically and registers the URL with Telegram.
 
-### Health check
-
-The bot runs a lightweight HTTP server on `HEALTH_PORT` (default `8080`) that returns `200 OK`. Configure Railway's health check to hit that port if needed.
-
 ---
 
 ## Configuration reference
@@ -192,7 +188,6 @@ Copy `.env.example` to `.env` and adjust as needed. See [BOT.md](BOT.md) for a d
 | `DB_PRUNE_DAYS` | `7` | Days of snapshots to retain |
 | `WEBHOOK_URL` | _(empty)_ | Public HTTPS URL — enables webhook mode |
 | `PORT` | `8443` | Webhook listener port |
-| `HEALTH_PORT` | `8080` | Health check HTTP server port |
 | `WEBHOOK_SECRET` | _(empty)_ | Optional secret token for webhook security |
 
 ---

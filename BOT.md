@@ -152,13 +152,6 @@ The port the webhook HTTP server listens on. Railway routes external traffic to 
 PORT=8443   # default
 ```
 
-### `HEALTH_PORT`
-The port for the health check HTTP server. Returns `200 OK` on any request. Configure Railway's health check to hit this port.
-
-```
-HEALTH_PORT=8080   # default
-```
-
 ### `WEBHOOK_SECRET`
 An optional random string that Telegram includes in every webhook request as a header. The bot verifies it to reject spoofed requests. Recommended for production.
 

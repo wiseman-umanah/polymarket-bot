@@ -1,6 +1,9 @@
 import json
+import logging
 import requests
 from bot.config import GAMMA_API_URL, GAMMA_API_PARAMS, MIN_VOLUME, MIN_VOLUME_24HR
+
+logger = logging.getLogger(__name__)
 
 
 def fetch_markets() -> list[dict]:
@@ -15,7 +18,7 @@ def fetch_markets() -> list[dict]:
         data = response.json()
 
         if not isinstance(data, list):
-            print(f"[WARNING] Unexpected API response format: {type(data)}")
+            logger.warning(f"Unexpected API response format: {type(data)}")
             return []
 
         markets = []
@@ -42,13 +45,13 @@ def fetch_markets() -> list[dict]:
                     "slug": market.get("slug"),
                 })
             except (ValueError, IndexError, TypeError) as e:
-                print(f"[WARNING] Failed to parse market {market.get('id')}: {e}")
+                logger.warning(f"Failed to parse market {market.get('id')}: {e}")
 
         return markets
 
     except requests.RequestException as e:
-        print(f"[ERROR] Failed to fetch markets: {e}")
+        logger.error(f"Failed to fetch markets: {e}")
         return []
     except Exception as e:
-        print(f"[ERROR] Unexpected error in fetch_markets: {e}")
+        logger.error(f"Unexpected error in fetch_markets: {e}")
         return []
