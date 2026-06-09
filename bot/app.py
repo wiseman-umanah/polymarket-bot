@@ -2,7 +2,7 @@ import asyncio
 import logging
 import signal
 from telegram import BotCommand, BotCommandScopeChat, BotCommandScopeDefault
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, PollAnswerHandler, filters
 from bot.config import (
     TELEGRAM_BOT_TOKEN, ADMIN_CHAT_ID, POLL_INTERVAL,
     WEBHOOK_URL, PORT, WEBHOOK_SECRET, LOG_LEVEL,
@@ -18,7 +18,7 @@ from bot.handlers.user import (
     cmd_top, cmd_market, cmd_history, cmd_mystats,
 )
 from bot.handlers.preferences import cmd_alerts, cmd_quiet, cmd_minvol, cmd_pricefilter
-from bot.handlers.admin import cmd_admin, cmd_adminstats, cmd_broadcast, admin_callback
+from bot.handlers.admin import cmd_admin, cmd_adminstats, cmd_broadcast, cmd_poll, admin_callback, handle_poll_answer
 from bot.handlers.menu import handle_menu_text, settings_menu_callback
 from bot.handlers.settings_ui import (
     settings_choice_callback, alert_filter_callback, numpad_callback, reset_all_callback,
@@ -61,6 +61,8 @@ def _build_app() -> Application:
     app.add_handler(CommandHandler("admin", cmd_admin))
     app.add_handler(CommandHandler("adminstats", cmd_adminstats))
     app.add_handler(CommandHandler("broadcast", cmd_broadcast))
+    app.add_handler(CommandHandler("poll", cmd_poll))
+    app.add_handler(PollAnswerHandler(handle_poll_answer))
     app.add_handler(CallbackQueryHandler(admin_callback, pattern="^admin_"))
     app.add_handler(CallbackQueryHandler(settings_menu_callback, pattern="^menu_"))
     app.add_handler(CallbackQueryHandler(settings_choice_callback, pattern="^numset_"))
@@ -100,6 +102,7 @@ _ADMIN_COMMANDS = _USER_COMMANDS + [
     BotCommand("admin",      "Pause / resume all alerts"),
     BotCommand("adminstats", "Subscriber count and bot stats"),
     BotCommand("broadcast",  "Send a message to all subscribers"),
+    BotCommand("poll",       "Broadcast a poll to all subscribers"),
 ]
 
 

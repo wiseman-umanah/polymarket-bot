@@ -20,15 +20,25 @@ async def handle_menu_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Thanks for letting us know — we'll work on it. 🙏")
         return
 
+    if context.user_data.pop("awaiting_search", False):
+        chat_id = update.effective_chat.id
+        query = update.message.text
+        await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+        history = context.user_data.setdefault("agent_history", [])
+        answer = await run_agent(chat_id, f"search for markets about: {query}", history)
+        history.append({"role": "user", "content": query})
+        history.append({"role": "assistant", "content": answer})
+        context.user_data["agent_history"] = history[-_HISTORY_LIMIT:]
+        await update.message.reply_text(answer)
+        return
+
     text = update.message.text
 
     if text == BTN_TOP:
         await cmd_top(update, context)
     elif text == BTN_SEARCH:
-        await update.message.reply_text(
-            "🔍 Send <code>/market &lt;term&gt;</code> to search — e.g. <code>/market election</code>",
-            parse_mode="HTML",
-        )
+        context.user_data["awaiting_search"] = True
+        await update.message.reply_text("🔍 What market are you looking for? Type a keyword:")
     elif text == BTN_HISTORY:
         await cmd_history(update, context)
     elif text == BTN_SETTINGS:

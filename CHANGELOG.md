@@ -5,6 +5,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Poll broadcasting** — `/poll Question | Option A | Option B` sends a native
+  Telegram poll to all subscribers. Votes are forwarded to the admin chat in
+  real time with username and choice. First vote per user is final; subsequent
+  changes are silently ignored. Admin-only command, hidden from regular users.
+- **Conversational market search** — tapping 🔍 Search Market now prompts for a
+  keyword instead of showing a command hint; reply routes directly through the
+  agent's `search_markets` tool.
+- **My Stats inline settings** — stats view now shows the settings keyboard
+  inline so users can change preferences immediately without a separate tap.
+
+---
+
 ## [0.3.0] - 2026-06-09
 
 ### Added

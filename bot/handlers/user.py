@@ -6,7 +6,7 @@ from bot.config import (
     LOOKBACK_MINUTES, VOLUME_SPIKE_MULTIPLIER, ADMIN_CHAT_ID,
 )
 from bot.state import state
-from bot.keyboards import main_menu_keyboard, unsubscribe_feedback_keyboard
+from bot.keyboards import main_menu_keyboard, unsubscribe_feedback_keyboard, settings_menu_keyboard
 from bot.db import (
     add_subscriber, remove_subscriber, count_subscribers,
     count_alerts_today, get_subscriber_info, get_preferences,
@@ -188,7 +188,7 @@ async def cmd_mystats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Filter      : {prefs.get('signal_filter', 'all')}\n"
         f"Quiet hours : {quiet_str}\n"
         f"Min volume  : {'$' + f'{mv:,.0f}' if mv else f'Global (${MIN_VOLUME:,})'}\n"
-        f"Price move  : {f'{pt:.0%}' if pt else f'Global ({PRICE_CHANGE_THRESHOLD:.0%})'}\n\n"
-        f"Change with /alerts /quiet /minvol /pricefilter",
+        f"Price move  : {f'{pt:.0%}' if pt else f'Global ({PRICE_CHANGE_THRESHOLD:.0%})'}",
         parse_mode="HTML",
+        reply_markup=settings_menu_keyboard(),
     )
