@@ -52,3 +52,8 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 WEBHOOK_URL = os.getenv("WEBHOOK_URL", "")
 PORT = int(os.getenv("PORT", "8443"))
 WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")
+
+# LLM agent (Groq)
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+AGENT_MODEL = os.getenv("AGENT_MODEL", "llama-3.3-70b-versatile")
+AGENT_RATE_LIMIT = int(os.getenv("AGENT_RATE_LIMIT", "5"))  # max requests per 60s per user

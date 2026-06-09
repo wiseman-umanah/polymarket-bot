@@ -1,6 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes
-from bot.config import MIN_VOLUME, PRICE_CHANGE_THRESHOLD
+from bot.config import MIN_VOLUME, PRICE_CHANGE_THRESHOLD, AGENT_RATE_LIMIT
 from bot.db import get_preferences
 from bot.keyboards import (
     BTN_TOP, BTN_SEARCH, BTN_HISTORY, BTN_SETTINGS, BTN_MYSTATS, BTN_HELP,
@@ -9,6 +9,9 @@ from bot.keyboards import (
 )
 from bot.handlers.user import cmd_top, cmd_history, cmd_mystats, cmd_help
 from bot.handlers.unsubscribe import notify_admin_unsub_feedback
+from bot.agent import run_agent, check_rate_limit
+
+_HISTORY_LIMIT = 6  # messages kept per user (3 exchanges)
 
 
 async def handle_menu_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -44,7 +47,19 @@ async def handle_menu_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == BTN_HELP:
         await cmd_help(update, context)
     else:
-        await update.message.reply_text("I didn't quite catch that — try a button below or send /help.")
+        chat_id = update.effective_chat.id
+        if not check_rate_limit(chat_id):
+            await update.message.reply_text(
+                f"⏳ You can ask up to {AGENT_RATE_LIMIT} questions per minute — try again shortly."
+            )
+            return
+        await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+        history = context.user_data.setdefault("agent_history", [])
+        answer = await run_agent(chat_id, text, history)
+        history.append({"role": "user", "content": text})
+        history.append({"role": "assistant", "content": answer})
+        context.user_data["agent_history"] = history[-_HISTORY_LIMIT:]
+        await update.message.reply_text(answer)
 
 
 async def settings_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
